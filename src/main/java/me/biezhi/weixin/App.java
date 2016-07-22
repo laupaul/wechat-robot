@@ -5,10 +5,15 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.UIManager;
 
+import me.biezhi.weixin.util.CookieUtil;
+import me.biezhi.weixin.util.JSUtil;
+import me.biezhi.weixin.util.Matchers;
 import blade.kit.DateKit;
 import blade.kit.StringKit;
 import blade.kit.http.HttpRequest;
@@ -17,9 +22,6 @@ import blade.kit.json.JSONArray;
 import blade.kit.json.JSONObject;
 import blade.kit.logging.Logger;
 import blade.kit.logging.LoggerFactory;
-import me.biezhi.weixin.util.CookieUtil;
-import me.biezhi.weixin.util.JSUtil;
-import me.biezhi.weixin.util.Matchers;
 
 /**
  * Hello world!
@@ -343,7 +345,8 @@ public class App {
 							}
 							//群聊
 							if(contact.getString("UserName").indexOf("@@") != -1){
-								continue;
+//								System.out.println();
+//								continue;
 							}
 							//自己
 							if(contact.getString("UserName").equals(this.User.getString("UserName"))){
@@ -409,7 +412,7 @@ public class App {
 		String clientMsgId = DateKit.getCurrentUnixTime() + StringKit.getRandomNumber(5);
 		JSONObject Msg = new JSONObject();
 		Msg.put("Type", 1);
-		Msg.put("Content", content);
+		Msg.put("Content", "AutoReply："+content);
 		Msg.put("FromUserName", User.getString("UserName"));
 		Msg.put("ToUserName", to);
 		Msg.put("LocalID", clientMsgId);
@@ -417,7 +420,6 @@ public class App {
 		
 		body.put("BaseRequest", this.BaseRequest);
 		body.put("Msg", Msg);
-		
 		HttpRequest request = HttpRequest.post(url)
 				.header("Content-Type", "application/json;charset=utf-8")
 				.header("Cookie", this.cookie)
@@ -489,11 +491,14 @@ public class App {
 			int msgType = msg.getInt("MsgType", 0);
 			String name = getUserRemarkName(msg.getString("FromUserName"));
 			String content = msg.getString("Content");
-			
 			if(msgType == 51){
 				LOGGER.info("[*] 成功截获微信初始化消息");
 			} else if(msgType == 1){
-				if(SpecialUsers.contains(msg.getString("ToUserName"))){
+				if(msg.getString("FromUserName").indexOf("@@")!=-1 && !getNotFilterGroups().contains(name)){
+					String[] peopleContent = content.split(":<br/>");
+					LOGGER.info("|" + name + "| " + getUserRemarkName(peopleContent[0]) + ":\n" + peopleContent[1].replace("<br/>", "\n"));
+					continue;
+				}else if(SpecialUsers.contains(msg.getString("ToUserName"))){
 					continue;
 				} else if(msg.getString("FromUserName").equals(User.getString("UserName"))){
 					continue;
@@ -504,12 +509,12 @@ public class App {
 					LOGGER.info(name + ": " + content);
 					String ans = xiaodoubi(content);
 					webwxsendmsg(ans, msg.getString("FromUserName"));
-					LOGGER.info("自动回复 " + ans);
+					LOGGER.info("自动回复: " + ans);
 				}
 			} else if(msgType == 3){
-				webwxsendmsg("二蛋还不支持图片呢", msg.getString("FromUserName"));
+//				webwxsendmsg("二蛋还不支持图片呢", msg.getString("FromUserName"));
 			} else if(msgType == 34){
-				webwxsendmsg("二蛋还不支持语音呢", msg.getString("FromUserName"));
+//				webwxsendmsg("二蛋还不支持语音呢", msg.getString("FromUserName"));
 			} else if(msgType == 42){
 				LOGGER.info(name + " 给你发送了一张名片:");
 				LOGGER.info("=========================");
@@ -517,10 +522,18 @@ public class App {
 		}
 	}
 	
+	private Set<String> getNotFilterGroups(){
+		Set<String> groups=new HashSet<String>();
+		groups.add("四个小伙");
+		groups.add("小嘛小二逼呀");
+		groups.add("金蝶EAS");
+		return groups;
+	}
+	
 	private final String ITPK_API = "http://i.itpk.cn/api.php";
 	
 	// 这里的api_key和api_secret可以自己申请一个
-	private final String KEY = "?api_key=你的api_key&api_secret=你的api_secret";
+	private final String KEY = "?api_key=d33c7c8af4214b9fe179d31a3672e4c8&api_secret=kc3u5n081a69";
 	
 	private String xiaodoubi(String msg) {
 		String url = ITPK_API + KEY + "&question=" + msg;
